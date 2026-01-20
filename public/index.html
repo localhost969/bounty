@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUG BOUNTY AI - Security Traffic Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-green: #3fb950;
+            --accent-yellow: #d29922;
+            --accent-red: #f85149;
+            --accent-blue: #58a6ff;
+            --accent-purple: #a371f7;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .logo svg { width: 24px; height: 24px; fill: var(--accent-green); }
+
+        .nav-controls { display: flex; align-items: center; gap: 10px; }
+
+        .url-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .url-bar input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .url-bar input:focus { outline: none; border-color: var(--accent-blue); }
+
+        button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover { background: var(--border-color); }
+        button.primary { background: var(--accent-green); border-color: var(--accent-green); color: #000; }
+        button.primary:hover { background: #2ea043; }
+        button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+        button.danger:hover { background: rgba(248, 81, 73, 0.1); }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-connected { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }
+        .status-disconnected { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+
+        .main-container { display: flex; height: calc(100vh - 57px); }
+
+        .traffic-panel {
+            width: 350px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-header h3 { font-size: 14px; font-weight: 600; }
+
+        .stats-bar {
+            display: flex;
+            gap: 12px;
+            padding: 10px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .stat { display: flex; align-items: center; gap: 4px; }
+        .stat-value { color: var(--text-primary); font-weight: 600; }
+
+        .filter-bar {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-bar input {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .filter-bar select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .traffic-list { flex: 1; overflow-y: auto; }
+
+        .traffic-item {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .traffic-item:hover { background: var(--bg-tertiary); }
+        .traffic-item.selected { background: var(--bg-tertiary); border-left: 3px solid var(--accent-blue); }
+
+        .traffic-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .method-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+
+        .method-GET { background: rgba(88, 166, 255, 0.2); color: var(--accent-blue); }
+        .method-POST { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }
+        .method-PUT { background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }
+        .method-DELETE { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+        .method-PATCH { background: rgba(163, 113, 247, 0.2); color: var(--accent-purple); }
+
+        .status-code { font-size: 11px; font-weight: 600; }
+        .status-2xx { color: var(--accent-green); }
+        .status-3xx { color: var(--accent-blue); }
+        .status-4xx { color: var(--accent-yellow); }
+        .status-5xx { color: var(--accent-red); }
+
+        .category-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        .category-auth { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+        .category-api { background: rgba(88, 166, 255, 0.2); color: var(--accent-blue); }
+        .category-user { background: rgba(163, 113, 247, 0.2); color: var(--accent-purple); }
+        .category-admin { background: rgba(248, 81, 73, 0.3); color: var(--accent-red); }
+        .category-payment { background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }
+
+        .priority-high { border-left: 3px solid var(--accent-red); }
+        .priority-medium { border-left: 3px solid var(--accent-yellow); }
+
+        .traffic-item-url {
+            font-size: 12px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preview-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            min-width: 0;
+        }
+
+        .preview-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .preview-tab {
+            padding: 10px 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .preview-tab:hover { color: var(--text-primary); }
+        .preview-tab.active { color: var(--text-primary); border-bottom-color: var(--accent-blue); }
+
+        .preview-content { flex: 1; overflow: auto; padding: 16px; }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .preview-placeholder svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+        .json-preview {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .request-details { display: grid; gap: 16px; }
+
+        .detail-section {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .detail-section-header {
+            padding: 10px 16px;
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-section-content {
+            padding: 12px 16px;
+            font-family: 'Fira Code', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow: auto;
+        }
+
+        .ai-panel {
+            width: 450px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .chat-message.user {
+            background: var(--accent-blue);
+            color: #fff;
+            align-self: flex-end;
+            max-width: 85%;
+        }
+
+        .chat-message.ai {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+        }
+
+        .chat-message pre { margin: 10px 0; border-radius: 6px; overflow-x: auto; }
+        .chat-message code { font-family: 'Fira Code', 'Monaco', monospace; font-size: 12px; }
+        .chat-message p { margin: 8px 0; }
+        .chat-message p:first-child { margin-top: 0; }
+        .chat-message p:last-child { margin-bottom: 0; }
+        .chat-message h1, .chat-message h2, .chat-message h3 { margin: 12px 0 8px 0; font-size: 14px; }
+        .chat-message ul, .chat-message ol { margin: 8px 0; padding-left: 20px; }
+
+        .chat-input-area {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .context-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .chat-input-wrapper { display: flex; gap: 10px; }
+
+        .chat-input-wrapper textarea {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            height: 80px;
+            font-family: inherit;
+        }
+
+        .chat-input-wrapper textarea:focus { outline: none; border-color: var(--accent-blue); }
+        .chat-input-wrapper button { align-self: flex-end; }
+
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+        .quick-action {
+            padding: 4px 10px;
+            font-size: 11px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .quick-action:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        .typing-indicator { display: inline-flex; gap: 4px; }
+        .typing-indicator span {
+            width: 6px; height: 6px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.3; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            BUG BOUNTY AI
+        </div>
+        
+        <div class="url-bar">
+            <input type="text" id="urlInput" placeholder="Enter URL to navigate...">
+            <button onclick="navigate()">Go</button>
+        </div>
+
+        <div class="nav-controls">
+            <span id="connectionStatus" class="status-badge status-disconnected">Disconnected</span>
+            <button onclick="connectBrowser()">Connect</button>
+            <button class="danger" onclick="closeBrowser()">Disconnect</button>
+            <button onclick="clearTraffic()">Clear All</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="traffic-panel">
+            <div class="panel-header">
+                <h3>📡 Captured Traffic</h3>
+                <button onclick="refreshFiles()" style="padding: 4px 8px; font-size: 11px;">↻ Refresh</button>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat">Total: <span class="stat-value" id="statTotal">0</span></div>
+                <div class="stat">High: <span class="stat-value" id="statHigh" style="color: var(--accent-red)">0</span></div>
+                <div class="stat">Selected: <span class="stat-value" id="statSelected">0</span></div>
+            </div>
+
+            <div class="filter-bar">
+                <input type="text" id="filterSearch" placeholder="Filter..." oninput="filterTraffic()">
+                <select id="filterCategory" onchange="filterTraffic()">
+                    <option value="">All</option>
+                    <option value="auth">Auth</option>
+                    <option value="api">API</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="data">Data</option>
+                    <option value="payment">Payment</option>
+                </select>
+            </div>
+
+            <div class="traffic-list" id="trafficList">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    <p>No traffic captured yet.<br>Connect and browse to start.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-panel">
+            <div class="preview-tabs">
+                <div class="preview-tab active" data-tab="overview" onclick="switchPreviewTab('overview')">Overview</div>
+                <div class="preview-tab" data-tab="request" onclick="switchPreviewTab('request')">Request</div>
+                <div class="preview-tab" data-tab="response" onclick="switchPreviewTab('response')">Response</div>
+                <div class="preview-tab" data-tab="raw" onclick="switchPreviewTab('raw')">Raw JSON</div>
+            </div>
+            
+            <div class="preview-content" id="previewContent">
+                <div class="preview-placeholder">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+                    <p>Select a request to preview details</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-panel">
+            <div class="panel-header">
+                <h3>🔍 AI Security Analyzer</h3>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-message ai">
+                    <strong>Welcome to BUG BOUNTY AI!</strong>
+                    <ol>
+                        <li>Connect to Chrome (auto-connects on load)</li>
+                        <li>Browse target websites to capture traffic</li>
+                        <li>Select requests or let me auto-select relevant ones</li>
+                        <li>Ask me to analyze for vulnerabilities!</li>
+                    </ol>
+                    <p>I specialize in <strong>IDOR, auth bypasses, info disclosure, injections</strong> and more.</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="context-info">
+                    <span id="contextInfo">Auto-select: most relevant requests</span>
+                    <button onclick="selectAllVisible()" style="padding: 2px 8px; font-size: 11px;">Select All</button>
+                </div>
+                
+                <div class="chat-input-wrapper">
+                    <textarea id="promptInput" placeholder="Ask me to analyze the traffic... (Ctrl+Enter to send)"></textarea>
+                    <button class="primary" onclick="sendPrompt()">Analyze</button>
+                </div>
+
+                <div class="quick-actions">
+                    <span class="quick-action" onclick="quickPrompt('Analyze for IDOR vulnerabilities')">🔓 IDOR</span>
+                    <span class="quick-action" onclick="quickPrompt('Check for authentication issues')">🔑 Auth</span>
+                    <span class="quick-action" onclick="quickPrompt('Look for sensitive data exposure')">📋 Data Leak</span>
+                    <span class="quick-action" onclick="quickPrompt('Summarize all API endpoints')">📡 APIs</span>
+                    <span class="quick-action" onclick="quickPrompt('Find injection points')">💉 Inject</span>
+                    <span class="quick-action" onclick="quickPrompt('Check for broken access control')">🚫 BAC</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trafficData = [];
+        let selectedFiles = new Set();
+        let currentPreview = null;
+        let currentPreviewData = null;
+        let currentTab = 'overview';
+
+        window.addEventListener('load', async () => {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            await autoConnect();
+            refreshFiles();
+        });
+
+        setInterval(refreshFiles, 3000);
+
+        async function autoConnect() {
+            try {
+                const res = await fetch('/api/connect', { method: 'POST' });
+                const data = await res.json();
+                if (!data.error) {
+                    updateConnectionStatus(true);
+                    addChatMessage('ai', '✅ Connected to Chrome! Browse websites to capture traffic.');
+                }
+            } catch (e) {
+                console.error('Auto-connect error:', e);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const badge = document.getElementById('connectionStatus');
+            badge.textContent = connected ? 'Connected' : 'Disconnected';
+            badge.className = 'status-badge ' + (connected ? 'status-connected' : 'status-disconnected');
+        }
+
+        async function connectBrowser() {
+            try {
+                const res = await fetch('/api/connect', { method: 'POST' });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                updateConnectionStatus(true);
+                addChatMessage('ai', '✅ Connected to Chrome successfully!');
+            } catch (e) {
+                addChatMessage('ai', `❌ Connection failed: ${e.message}`);
+            }
+        }
+
+        async function closeBrowser() {
+            await fetch('/api/close', { method: 'POST' });
+            updateConnectionStatus(false);
+        }
+
+        async function navigate() {
+            const url = document.getElementById('urlInput').value;
+            if (!url) return;
+            try {
+                await fetch('/api/navigate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+            } catch (e) {
+                console.error('Navigation error:', e);
+            }
+        }
+
+        async function refreshFiles() {
+            try {
+                const res = await fetch('/api/files');
+                const data = await res.json();
+                trafficData = data.files || [];
+                renderTrafficList();
+                updateStats();
+            } catch (e) {
+                console.error('Refresh error:', e);
+            }
+        }
+
+        async function clearTraffic() {
+            if (confirm('Clear all captured traffic?')) {
+                await fetch('/api/clear', { method: 'POST' });
+                trafficData = [];
+                selectedFiles.clear();
+                currentPreview = null;
+                currentPreviewData = null;
+                renderTrafficList();
+                updateStats();
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="preview-placeholder">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+                        <p>Select a request to preview details</p>
+                    </div>`;
+            }
+        }
+
+        function renderTrafficList() {
+            const container = document.getElementById('trafficList');
+            const searchFilter = document.getElementById('filterSearch').value.toLowerCase();
+            const categoryFilter = document.getElementById('filterCategory').value;
+            
+            const filteredData = trafficData.filter(item => {
+                const matchSearch = !searchFilter || item.url.toLowerCase().includes(searchFilter);
+                const matchCategory = !categoryFilter || item.category === categoryFilter;
+                return matchSearch && matchCategory;
+            });
+
+            if (filteredData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        <p>${trafficData.length === 0 ? 'No traffic captured yet.<br>Connect and browse to start.' : 'No matching requests.'}</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filteredData.map(item => `
+                <div class="traffic-item ${currentPreview === item.filename ? 'selected' : ''} ${item.priority === 'high' ? 'priority-high' : item.priority === 'medium' ? 'priority-medium' : ''}" 
+                     onclick="previewRequest('${item.filename}')" data-filename="${item.filename}">
+                    <div class="traffic-item-header">
+                        <input type="checkbox" 
+                               ${selectedFiles.has(item.filename) ? 'checked' : ''} 
+                               onclick="event.stopPropagation(); toggleSelect('${item.filename}')">
+                        <span class="method-badge method-${item.method}">${item.method}</span>
+                        <span class="status-code status-${getStatusClass(item.status)}">${item.status || '---'}</span>
+                        <span class="category-tag category-${item.category}">${item.category || 'other'}</span>
+                    </div>
+                    <div class="traffic-item-url" title="${escapeHtml(item.url)}">${truncateUrl(item.url)}</div>
+                </div>
+            `).join('');
+        }
+
+        function truncateUrl(url) {
+            try {
+                const u = new URL(url);
+                const path = u.pathname + u.search;
+                return path.length > 45 ? path.substring(0, 45) + '...' : path;
+            } catch {
+                return url.substring(0, 45);
+            }
+        }
+
+        function getStatusClass(status) {
+            if (!status) return '';
+            if (status >= 200 && status < 300) return '2xx';
+            if (status >= 300 && status < 400) return '3xx';
+            if (status >= 400 && status < 500) return '4xx';
+            if (status >= 500) return '5xx';
+            return '';
+        }
+
+        function toggleSelect(filename) {
+            if (selectedFiles.has(filename)) {
+                selectedFiles.delete(filename);
+            } else {
+                selectedFiles.add(filename);
+            }
+            updateContextInfo();
+            updateStats();
+            renderTrafficList();
+        }
+
+        function selectAllVisible() {
+            const searchFilter = document.getElementById('filterSearch').value.toLowerCase();
+            const categoryFilter = document.getElementById('filterCategory').value;
+            
+            trafficData.forEach(item => {
+                const matchSearch = !searchFilter || item.url.toLowerCase().includes(searchFilter);
+                const matchCategory = !categoryFilter || item.category === categoryFilter;
+                if (matchSearch && matchCategory) {
+                    selectedFiles.add(item.filename);
+                }
+            });
+            
+            renderTrafficList();
+            updateContextInfo();
+            updateStats();
+        }
+
+        function updateContextInfo() {
+            const info = document.getElementById('contextInfo');
+            if (selectedFiles.size === 0) {
+                info.textContent = 'Auto-select: most relevant requests';
+            } else {
+                info.textContent = `${selectedFiles.size} request(s) selected`;
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').textContent = trafficData.length;
+            document.getElementById('statHigh').textContent = trafficData.filter(t => t.priority === 'high').length;
+            document.getElementById('statSelected').textContent = selectedFiles.size;
+        }
+
+        function filterTraffic() { renderTrafficList(); }
+
+        async function previewRequest(filename) {
+            currentPreview = filename;
+            renderTrafficList();
+            
+            try {
+                const res = await fetch(`/api/file/${filename}`);
+                currentPreviewData = await res.json();
+                renderPreview(currentPreviewData);
+            } catch (e) {
+                console.error('Preview error:', e);
+            }
+        }
+
+        function renderPreview(data) {
+            const content = document.getElementById('previewContent');
+            
+            switch (currentTab) {
+                case 'overview':
+                    content.innerHTML = `
+                        <div class="request-details">
+                            <div class="detail-section">
+                                <div class="detail-section-header">📋 Request Info</div>
+                                <div class="detail-section-content">
+                                    <strong>Method:</strong> ${data.method}<br>
+                                    <strong>URL:</strong> ${escapeHtml(data.url)}<br>
+                                    <strong>Status:</strong> <span class="status-code status-${getStatusClass(data.status)}">${data.status || 'N/A'}</span><br>
+                                    <strong>Category:</strong> <span class="category-tag category-${data.category}">${data.category || 'unknown'}</span><br>
+                                    <strong>Priority:</strong> ${data.priority || 'low'}<br>
+                                    <strong>Content-Type:</strong> ${data.contentType || 'N/A'}<br>
+                                    <strong>Response Size:</strong> ${formatBytes(data.responseSize)}<br>
+                                    <strong>Captured:</strong> ${new Date(data.timestamp).toLocaleString()}
+                                </div>
+                            </div>
+                            
+                            ${Object.keys(data.requestHeaders || {}).length > 0 ? `
+                            <div class="detail-section">
+                                <div class="detail-section-header">🔐 Security Headers</div>
+                                <div class="detail-section-content">${formatHeaders(data.requestHeaders)}</div>
+                            </div>` : ''}
+                            
+                            ${data.postData ? `
+                            <div class="detail-section">
+                                <div class="detail-section-header">📤 Request Body</div>
+                                <div class="detail-section-content"><pre>${escapeHtml(formatJson(data.postData))}</pre></div>
+                            </div>` : ''}
+                        </div>`;
+                    break;
+                    
+                case 'request':
+                    content.innerHTML = `
+                        <div class="request-details">
+                            <div class="detail-section">
+                                <div class="detail-section-header">Request Headers</div>
+                                <div class="detail-section-content">${formatHeaders(data.requestHeaders) || '<em>None captured</em>'}</div>
+                            </div>
+                            ${data.postData ? `
+                            <div class="detail-section">
+                                <div class="detail-section-header">Request Body</div>
+                                <div class="detail-section-content"><pre>${escapeHtml(formatJson(data.postData))}</pre></div>
+                            </div>` : '<p style="color: var(--text-secondary); padding: 20px;">No request body</p>'}
+                        </div>`;
+                    break;
+                    
+                case 'response':
+                    content.innerHTML = `
+                        <div class="request-details">
+                            <div class="detail-section">
+                                <div class="detail-section-header">Response Headers</div>
+                                <div class="detail-section-content">${formatHeaders(data.responseHeaders) || '<em>None captured</em>'}</div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-section-header">Response Body</div>
+                                <div class="detail-section-content"><pre>${escapeHtml(formatJson(data.responseBody))}</pre></div>
+                            </div>
+                        </div>`;
+                    break;
+                    
+                case 'raw':
+                    content.innerHTML = `<div class="json-preview">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
+                    break;
+            }
+        }
+
+        function switchPreviewTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.preview-tab[data-tab="${tab}"]`).classList.add('active');
+            if (currentPreviewData) renderPreview(currentPreviewData);
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes) return 'N/A';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function formatHeaders(headers) {
+            if (!headers || Object.keys(headers).length === 0) return '';
+            return Object.entries(headers).map(([k, v]) => `<strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}`).join('<br>');
+        }
+
+        function formatJson(data) {
+            if (!data) return '';
+            if (typeof data === 'string') {
+                try { return JSON.stringify(JSON.parse(data), null, 2); } 
+                catch { return data; }
+            }
+            return JSON.stringify(data, null, 2);
+        }
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function addChatMessage(role, content) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `chat-message ${role}`;
+            
+            if (role === 'ai') {
+                div.innerHTML = marked.parse(content);
+                div.querySelectorAll('pre code').forEach(block => hljs.highlightBlock(block));
+            } else {
+                div.textContent = content;
+            }
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function quickPrompt(prompt) {
+            document.getElementById('promptInput').value = prompt;
+            sendPrompt();
+        }
+
+        async function sendPrompt() {
+            const input = document.getElementById('promptInput');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            addChatMessage('user', prompt);
+            input.value = '';
+
+            const aiDiv = addChatMessage('ai', '');
+            aiDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+
+            try {
+                const files = Array.from(selectedFiles);
+                
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, files })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+
+                    const navMatch = fullText.match(/\[\[NAVIGATE: (.*?)\]\]/);
+                    if (navMatch) {
+                        const url = navMatch[1];
+                        fullText = fullText.replace(navMatch[0], `*🌐 Navigating to ${url}...*`);
+                        fetch('/api/navigate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url })
+                        });
+                    }
+
+                    aiDiv.innerHTML = marked.parse(fullText);
+                    aiDiv.querySelectorAll('pre code').forEach(block => hljs.highlightBlock(block));
+                    document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+                }
+
+            } catch (e) {
+                aiDiv.innerHTML = `<span style="color: var(--accent-red)">❌ Error: ${e.message}</span>`;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) sendPrompt();
+        });
+
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') navigate();
+        });
+    </script>
+</body>
+</html>

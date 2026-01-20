@@ -1,0 +1,26 @@
+{
+  "name": "bugs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon --config nodemon.json --exec \"node src/server.js\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@mistralai/mistralai": "^1.11.0",
+    "axios": "^1.13.2",
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "puppeteer": "^24.34.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
