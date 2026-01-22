@@ -49,7 +49,6 @@ A tool that combines a  Chromium browser (Puppeteer) with an AI brain (Mistral) 
 ```
 /bounty
 ├── captured
-├── node_modules
 ├── nodemon.json
 ├── package.json
 ├── public
